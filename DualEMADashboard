@@ -1,0 +1,81 @@
+//@version=5
+indicator("🧭 Multi-Timeframe Dual EMA Dashboard", overlay=true, max_labels_count=500)
+
+// === User Inputs ===
+ema1Length = input.int(50, "EMA 1 Length")
+ema2Length = input.int(200, "EMA 2 Length")
+showTFs = input.string("1,5,15,30,60,120,240,D,W,M", 
+     "Timeframes (comma separated, from: 1,5,15,30,60,120,240,D,W,M)")
+
+// === Helper: check if user requested a TF ===
+pad(s) => "," + str.replace_all(s, " ", "") + ","
+padded = pad(showTFs)
+has(tf) => str.contains(padded, "," + tf + ",")
+
+// === Colors ===
+bg_main      = color.new(color.black, 0)
+bg_header    = color.new(color.black, 0)
+bg_alt       = color.new(color.rgb(25, 25, 25), 0)
+text_main    = color.new(color.white, 0)
+text_accent  = color.new(color.yellow, 0)
+green_status = color.new(#0ec079, 0)
+red_status   = color.new(color.red, 0)
+border_col   = color.new(color.gray, 70)
+
+// === Create table (once) ===
+// 4 columns → TF | EMA1 Status | EMA2 Status | EMA Values
+var table dash = table.new(position.bottom_right, 4, 12, border_width=1, border_color=border_col)
+
+// === Header ===
+if barstate.isfirst
+    table.cell(dash, 0, 0, "TF", bgcolor=bg_header, text_color=text_accent)
+    table.cell(dash, 1, 0, "EMA " + str.tostring(ema1Length), bgcolor=bg_header, text_color=text_accent)
+    table.cell(dash, 2, 0, "EMA " + str.tostring(ema2Length), bgcolor=bg_header, text_color=text_accent)
+    table.cell(dash, 3, 0, "Values", bgcolor=bg_header, text_color=text_accent)
+
+// === Function to fill a row ===
+add_row(row, tf, tf_label) =>
+    ema1 = request.security(syminfo.tickerid, tf, ta.ema(close, ema1Length))
+    ema2 = request.security(syminfo.tickerid, tf, ta.ema(close, ema2Length))
+    close_tf = request.security(syminfo.tickerid, tf, close)
+    above1 = close_tf > ema1
+    above2 = close_tf > ema2
+    bg_row = (row % 2 == 0) ? bg_main : bg_alt
+
+    table.cell(dash, 0, row, tf_label, bgcolor=bg_row, text_color=text_main)
+    table.cell(dash, 1, row, above1 ? "▲ Above" : "▼ Below", bgcolor=(above1 ? green_status : red_status), text_color=text_main)
+    table.cell(dash, 2, row, above2 ? "▲ Above" : "▼ Below", bgcolor=(above2 ? green_status : red_status), text_color=text_main)
+    table.cell(dash, 3, row, "E1:" + str.tostring(ema1, format.mintick) + "\nE2:" + str.tostring(ema2, format.mintick), bgcolor=bg_row, text_color=text_accent)
+
+// === Fill dashboard rows ===
+row = 1
+if has("1")
+    add_row(row, "1", "1m")
+    row += 1
+if has("5")
+    add_row(row, "5", "5m")
+    row += 1
+if has("15")
+    add_row(row, "15", "15m")
+    row += 1
+if has("30")
+    add_row(row, "30", "30m")
+    row += 1
+if has("60")
+    add_row(row, "60", "1h")
+    row += 1
+if has("120")
+    add_row(row, "120", "2h")
+    row += 1
+if has("240")
+    add_row(row, "240", "4h")
+    row += 1
+// if has("D")
+//     add_row(row, "D", "1D")
+//     row += 1
+// if has("W")
+//     add_row(row, "W", "1W")
+//     row += 1
+// if has("M")
+//     add_row(row, "M", "1M")
+    row += 1
